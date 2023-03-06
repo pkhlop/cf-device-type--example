@@ -7,18 +7,22 @@ import {GetServerSideProps, GetServerSidePropsContext} from "next";
 const inter = Inter({subsets: ['latin']})
 
 const Home = ({
-                  isMobile,
                   deviceType,
-                  allHeaders
+                  isMobile,
+                  allHeaders,
+                  allQueries
               }) => {
-    if (!deviceType) {
-        deviceType = "Not Present, (defaulting to mobile)"
-    }
-    let header = `Device Header (cf-device-type) Is "${deviceType}"`
+
+    let header = `Device Is "${deviceType}"`
 
     let formattedHeaders = ""
     for (const key in allHeaders) {
         formattedHeaders += `${key}: ${allHeaders[key].substring(0, 100)}\n`
+    }
+
+    let formattedQuery = ""
+    for (const key in allQueries) {
+        formattedQuery += `${key}=${allQueries[key].substring(0, 100)}\n`
     }
 
     return (
@@ -31,6 +35,10 @@ const Home = ({
             </Head>
             <main className={styles.main}>
                 <h1 className={styles.title}>{header}</h1>
+
+                <h2 className={styles.title}>Query:</h2>
+                <pre>{formattedQuery}</pre>
+
                 <h2 className={styles.title}>Headers:</h2>
                 <pre>{formattedHeaders}</pre>
             </main>
@@ -45,16 +53,27 @@ export const getServerSideProps: GetServerSideProps = async (
         "Cache-Control",
         "public, s-maxage=300, stale-while-revalidate=600, stale-if-error=3600"
     );
+    let urlFlag = null;
+    if (context.query.hasOwnProperty("desktop")) {
+        context.query.desktop = "true";
+        urlFlag = "desktop";
+    }
+    if (context.query.hasOwnProperty("mobile")) {
+        context.query.mobile = "true";
+        if (context.query.hasOwnProperty("desktop")) {
+            context.query.desktop = "false";
+        }
+        urlFlag = "mobile";
+    }
 
-    console.log(context.req.headers);
-    console.log(context.req.headers["cf-device-type"])
-    context.req.headers["cf-device-type"] = context.req.headers["cf-device-type"] || "";
+    let headerFlag = context.req.headers["cf-device-type"] || null;
 
     return {
         props: {
-            isMobile: context.req.headers["cf-device-type"] === "mobile" || !context.req.headers["cf-device-type"],
-            deviceType: context.req.headers["cf-device-type"],
-            allHeaders: context.req.headers
+            deviceType: urlFlag || headerFlag || "mobile",
+            isMobile: (urlFlag || headerFlag || "mobile") == "mobile",
+            allHeaders: context.req.headers,
+            allQueries: context.query
         }
     };
 };
